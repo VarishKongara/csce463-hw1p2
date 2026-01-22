@@ -48,8 +48,17 @@ void requestUrls(std::queue<std::string>& url_queue, ThreadSafeSet& known_hosts,
     url_queue.pop();
     lock.unlock();
 
+    SocketClass Parse Url
+	Socket Class Check host and ip
+	Socket Class Check create http request
+	Socket Class send request
+	Socket Class recv loop
+	Socket Class return string
+	Socker Class kill buffer
 
-
+	// when thread finished requesting lock section std::cout, then get from queue
+	// inside function
+	safePrint(str);
 }
 
 int main(int argc, char** argv)
@@ -98,8 +107,6 @@ int main(int argc, char** argv)
         threads.emplace_back(function, i);
     }
 
-    // when thread finished requesting lock section std::cout, then get from queue
-    // inside function
     for (std::thread& t : threads) {
         t.join();
     }
