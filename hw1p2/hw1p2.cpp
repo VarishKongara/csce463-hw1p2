@@ -2,11 +2,55 @@
 //
 
 #include "pch.h"
-#include <iostream>
 
-int main()
+#include "ThreadSafeSet.h"
+
+#include <queue>
+#include <thread>
+
+
+int main(int argc, char** argv)
 {
-    std::cout << "Hello World!\n";
+    // Parse Command Line arguments
+    if (argc < 3) {
+        std::cout << "Not enough arguments" << std::endl;
+        return EXIT_FAILURE;
+    }
+    if (argc > 3) {
+        std::cout << "Too many arguments" << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    char* thread_str = argv[1];
+    char* end_ptr;
+    long int thread_long = strtol(thread_str, &end_ptr, 10);
+    if (thread_str == end_ptr) {
+        // number could not be parsed
+        std::cout << "Invalid thread count" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    if (errno == ERANGE || thread_long != 1) {
+        // number is too big
+        std::cout << "Invalid thread count" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    if (*end_ptr != '\0') {
+        std::cout << "Invalid thread count" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    int thread_count = static_cast<int>(thread_long);
+    std::string url_file = argv[2];
+
+    // Read file and create a queue of urls to request
+    std::queue<std::string> url_queue = parseUrlFile(url_file);
+
+    // Create an atomic hash set of previous hosts and ip
+    ThreadSafeSet known_hosts;
+    ThreadSafeSet known_ips;
+
+    // Initialize threads with a url, 
+    // when thread finished requesting lock section std::cout, then get from queue
+    // inside function
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu
