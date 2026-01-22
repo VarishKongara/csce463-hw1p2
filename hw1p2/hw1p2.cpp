@@ -2,12 +2,41 @@
 //
 
 #include "pch.h"
+#pragma comment(lib, "ws2_32.lib")
 
 #include "ThreadSafeSet.h"
 
 #include <queue>
 #include <thread>
+#include <vector>
+#include <fstream>
 
+
+// Queue of urls to request
+std::queue<std::string> parseUrlFile(std::string url_file) {
+    std::queue<std::string> url_queue;
+    std::ifstream file(url_file);
+
+    if (!file.is_open()) {
+        std::cout << "Unable to open file" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+        url_queue.push(line);
+    }
+
+    file.close();
+    return url_queue;
+}
+
+// Thread Safe Cout
+void safe_print(std::string& str) {
+    static std::mutex m;
+    std::lock_guard<std::mutex> lock(m);
+    std::cout << str << std::endl;
+}
 
 int main(int argc, char** argv)
 {
@@ -27,16 +56,16 @@ int main(int argc, char** argv)
     if (thread_str == end_ptr) {
         // number could not be parsed
         std::cout << "Invalid thread count" << std::endl;
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
     if (errno == ERANGE || thread_long != 1) {
         // number is too big
         std::cout << "Invalid thread count" << std::endl;
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
     if (*end_ptr != '\0') {
         std::cout << "Invalid thread count" << std::endl;
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
     int thread_count = static_cast<int>(thread_long);
     std::string url_file = argv[2];
@@ -49,8 +78,19 @@ int main(int argc, char** argv)
     ThreadSafeSet known_ips;
 
     // Initialize threads with a url, 
+    std::vector<std::thread> threads;
+    threads.reserve(thread_count);
+    for (int i = 0; i < thread_count; ++i) {
+        threads.emplace_back(function, i);
+    }
+
     // when thread finished requesting lock section std::cout, then get from queue
     // inside function
+    for (std::thread& t : threads) {
+        t.join();
+    }
+
+    return 0;
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu
