@@ -32,10 +32,24 @@ std::queue<std::string> parseUrlFile(std::string url_file) {
 }
 
 // Thread Safe Cout
-void safe_print(std::string& str) {
+void safePrint(std::string& str) {
     static std::mutex m;
     std::lock_guard<std::mutex> lock(m);
     std::cout << str << std::endl;
+}
+
+void requestUrls(std::queue<std::string>& url_queue, ThreadSafeSet& known_hosts, ThreadSafeSet& known_ip, SocketClass socket class) {
+    static std::mutex queue_mutex;
+    std::unique_lock<std::mutex> lock(queue_mutex);
+    if (url_queue.empty()) {
+        return;
+    }
+    std::string url = url_queue.front();
+    url_queue.pop();
+    lock.unlock();
+
+
+
 }
 
 int main(int argc, char** argv)
