@@ -29,5 +29,11 @@
     <ClInclude Include="HTMLParserBase.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SocketWrapper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ThreadSafeSet.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

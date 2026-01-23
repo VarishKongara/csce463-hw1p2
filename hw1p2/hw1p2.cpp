@@ -5,11 +5,10 @@
 #pragma comment(lib, "ws2_32.lib")
 
 #include "ThreadSafeSet.h"
+#include "SocketWrapper.h"
 
 #include <queue>
 #include <thread>
-#include <vector>
-#include <fstream>
 
 
 // Queue of urls to request
@@ -38,27 +37,24 @@ void safePrint(std::string& str) {
     std::cout << str << std::endl;
 }
 
-void requestUrls(std::queue<std::string>& url_queue, ThreadSafeSet& known_hosts, ThreadSafeSet& known_ip, SocketClass socket class) {
+void requestUrls(std::queue<std::string>& url_queue, ThreadSafeSet& known_hosts, ThreadSafeSet& known_ip) {
     static std::mutex queue_mutex;
-    std::unique_lock<std::mutex> lock(queue_mutex);
-    if (url_queue.empty()) {
-        return;
+    SocketWrapper socketwrapper;
+    while (true) {
+        std::unique_lock<std::mutex> lock(queue_mutex);
+        if (url_queue.empty()) {
+            break;
+        }
+        std::string url = url_queue.front();
+        url_queue.pop();
+        lock.unlock();
+
+        std::string output = socketwrapper.requestURL(url);
+
+        // when thread finished requesting lock section std::cout, then get from queue
+        // inside function
+        safePrint(output);
     }
-    std::string url = url_queue.front();
-    url_queue.pop();
-    lock.unlock();
-
-    SocketClass Parse Url
-	Socket Class Check host and ip
-	Socket Class Check create http request
-	Socket Class send request
-	Socket Class recv loop
-	Socket Class return string
-	Socker Class kill buffer
-
-	// when thread finished requesting lock section std::cout, then get from queue
-	// inside function
-	safePrint(str);
 }
 
 int main(int argc, char** argv)
@@ -104,7 +100,9 @@ int main(int argc, char** argv)
     std::vector<std::thread> threads;
     threads.reserve(thread_count);
     for (int i = 0; i < thread_count; ++i) {
-        threads.emplace_back(function, i);
+        threads.emplace_back([&]() {
+            requestUrls(url_queue, known_hosts, known_ips);
+        });
     }
 
     for (std::thread& t : threads) {
