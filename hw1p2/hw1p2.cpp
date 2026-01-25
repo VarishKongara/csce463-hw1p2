@@ -37,7 +37,7 @@ void safePrint(std::string& str) {
     std::cout << str << std::endl;
 }
 
-void requestUrls(std::queue<std::string>& url_queue, ThreadSafeSet& known_hosts, ThreadSafeSet& known_ip) {
+void requestUrls(std::queue<std::string>& url_queue, ThreadSafeSet& known_hosts, ThreadSafeSet& known_ips) {
     static std::mutex queue_mutex;
     SocketWrapper socketwrapper;
     while (true) {
@@ -49,10 +49,8 @@ void requestUrls(std::queue<std::string>& url_queue, ThreadSafeSet& known_hosts,
         url_queue.pop();
         lock.unlock();
 
-        std::string output = socketwrapper.requestURL(url);
+        std::string output = socketwrapper.requestURL(url, known_hosts, known_ips);
 
-        // when thread finished requesting lock section std::cout, then get from queue
-        // inside function
         safePrint(output);
     }
 }
@@ -89,6 +87,15 @@ int main(int argc, char** argv)
     int thread_count = static_cast<int>(thread_long);
     std::string url_file = argv[2];
 
+    // Initialize winsock
+    WSADATA wsaData;
+    WORD wVersionRequested = MAKEWORD(2, 2);
+    if (WSAStartup(wVersionRequested, &wsaData) != 0) {
+        std::cout << "WSAStartup error " << WSAGetLastError() << std::endl;
+        WSACleanup();
+        return EXIT_FAILURE;
+    }
+
     // Read file and create a queue of urls to request
     std::queue<std::string> url_queue = parseUrlFile(url_file);
 
@@ -109,6 +116,8 @@ int main(int argc, char** argv)
         t.join();
     }
 
+
+    WSACleanup();
     return 0;
 }
 

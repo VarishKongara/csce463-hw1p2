@@ -15,4 +15,7 @@
 #include <vector>
 #include <fstream>
 
+#include "winsock2.h"
+#include "WS2tcpip.h"
+
 #endif //PCH_H

@@ -22,11 +22,24 @@ struct SocketWrapper {
 
     std::stringstream output;
     http_req req;
+
+    SOCKET sock;
     
     
     Result<http_req> parseURL(char* url);
+    Result<bool> checkHost(const char* host, ThreadSafeSet& known_hosts);
+    Result<bool> dnsLookup(sockaddr_in& server, const char* host);
+    Result<bool> checkIP(const char* url);
+
+    // Create socket connection
+    //Result<bool> connect(const char* url);
+    // Send request
+    //Result<bool> sendRequest(const char* url);
+    // Recv loop
+    //Result<bool> read();
+    // Cleanup
    
-    std::string requestURL(std::string url);
+    std::string requestURL(std::string url, ThreadSafeSet& known_hosts, ThreadSafeSet& known_ips);
     
 
 };
@@ -42,6 +55,7 @@ Result<http_req> SocketWrapper::parseURL(char* url) {
         if (url[i] == '\0') {
             output << "failed with invalid scheme" << std::endl;
             error = 1;
+            return { 1, {} };
         }
     }
 
@@ -49,6 +63,7 @@ Result<http_req> SocketWrapper::parseURL(char* url) {
     if (scheme != "http://") {
         output << "failed with invalid scheme" << std::endl;
         error = 1;
+        return { 1, {} };
     }
 
     request.scheme = "http://";
@@ -107,22 +122,40 @@ Result<http_req> SocketWrapper::parseURL(char* url) {
     return Result<http_req>{ error, request};
 }
 
-std::string SocketWrapper::requestURL(std::string url) {
+Result<bool> SocketWrapper::checkHost(const char* host, ThreadSafeSet& known_hosts) {
+    output << "Checking host uniqueness... ";
+    if (known_hosts.seen(host)) {
+        output << "failed" << std::endl;
+        return Result<bool> {1, false};
+    }
+    
+    output << "passed" << std::endl;
+    return Result<bool> {0, true};
+}
+
+std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_hosts, ThreadSafeSet& known_ips) {
     output << "URL: " << url << std::endl;
     
     // Make a copy of the url and parse
     char* url_copy = new char[url.size() + 1];
     errno_t err = strcpy_s(url_copy, url.size() + 1, url.c_str());
     if (err != 0) {
-        std::cout << "Failed to copy arguments" << std::endl;
+        output << "Failed to copy arguments" << std::endl;
     }
     Result<http_req> url_parse = parseURL(url_copy);
     if (url_parse.error) {
         return output.str();
     }
     req = url_parse.value;
+    delete[] url_copy;
 
     output << "host " << req.host << ", port " << req.port << std::endl;
+
+    Result<bool> host_check = checkHost(req.host.c_str(), known_hosts);
+    if (host_check.error) {
+        return output.str();
+    }
+
 
     /*
     Socket Class Check host and ip
@@ -130,7 +163,7 @@ std::string SocketWrapper::requestURL(std::string url) {
 	Socket Class send request
 	Socket Class recv loop
 	Socket Class return string
-	Socker Class kill buffer
+	Socket Class kill buffer
     */
 
     return output.str();
