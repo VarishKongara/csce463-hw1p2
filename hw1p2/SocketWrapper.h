@@ -32,11 +32,11 @@ struct SocketWrapper {
     Result<bool> checkIP(const char* url);
 
     // Create socket connection
-    //Result<bool> connect(const char* url);
+    Result<bool> connect(const char* url);
     // Send request
-    //Result<bool> sendRequest(const char* url);
+    Result<bool> sendRequest(const char* url);
     // Recv loop
-    //Result<bool> read();
+    Result<bool> read();
     // Cleanup
    
     std::string requestURL(std::string url, ThreadSafeSet& known_hosts, ThreadSafeSet& known_ips);
@@ -123,7 +123,7 @@ Result<http_req> SocketWrapper::parseURL(char* url) {
 }
 
 Result<bool> SocketWrapper::checkHost(const char* host, ThreadSafeSet& known_hosts) {
-    output << "Checking host uniqueness... ";
+    output << "\t  Checking host uniqueness... ";
     if (known_hosts.seen(host)) {
         output << "failed" << std::endl;
         return Result<bool> {1, false};
@@ -131,6 +131,32 @@ Result<bool> SocketWrapper::checkHost(const char* host, ThreadSafeSet& known_hos
     
     output << "passed" << std::endl;
     return Result<bool> {0, true};
+}
+
+Result<bool> SocketWrapper::dnsLookup(sockaddr_in& server, const char* host) {
+    output << "\t  Doing DNS... ";
+    std::clock_t dns_start = std::clock();
+
+    // if not a valid ip check host
+    if (!(inet_pton(AF_INET, host, &(server.sin_addr)) == 1)) {        addrinfo hints = {};
+        addrinfo* result = nullptr;
+        hints.ai_family = AF_INET;
+        if (getaddrinfo(host, nullptr, &hints, &result) != 0) {
+            output << "failed with " << WSAGetLastError() << std::endl;
+            return { 1, false };
+        }
+
+        struct sockaddr_in* ipv4 = (struct sockaddr_in*)result->ai_addr;
+        server.sin_addr = ipv4->sin_addr;
+
+        freeaddrinfo(result);
+    }
+
+    std::clock_t dns_end = std::clock();
+    double dns_duration = static_cast<double>(dns_end - dns_start) / (CLOCKS_PER_SEC / 1000);
+    char ip_buffer[INET_ADDRSTRLEN] = {};
+    const char* ip = inet_ntop(AF_INET, &(server.sin_addr), ip_buffer, INET_ADDRSTRLEN);
+    output << "done in " << static_cast<int>(dns_duration) << " ms, found " << ip << std::endl;
 }
 
 std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_hosts, ThreadSafeSet& known_ips) {
@@ -150,12 +176,19 @@ std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_host
     delete[] url_copy;
 
     output << "host " << req.host << ", port " << req.port << std::endl;
-
+    
+    // Check if the host is duplicate
     Result<bool> host_check = checkHost(req.host.c_str(), known_hosts);
     if (host_check.error) {
         return output.str();
     }
 
+    // Perform dns lookup
+    sockaddr_in server;
+    Result<bool> dns_result = dnsLookup(server, req.host.c_str());
+
+    server.sin_family = AF_INET;
+    server.sin_port = htons(req.port);
 
     /*
     Socket Class Check host and ip
