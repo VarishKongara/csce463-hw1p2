@@ -52,6 +52,7 @@ void requestUrls(std::queue<std::string>& url_queue, ThreadSafeSet& known_hosts,
         std::string output = socketwrapper.requestURL(url, known_hosts, known_ips);
 
         safePrint(output);
+        socketwrapper.cleanup();
     }
 }
 

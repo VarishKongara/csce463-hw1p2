@@ -28,7 +28,7 @@ struct SocketWrapper {
     const int INITIAL_BUF_SIZE = 4096;
     const int THRESHOLD = 1024;
     const int MAX_ROBOT_SIZE = 16 * 1024;
-    const int MAX_PAGE_SIZE = 12 * 1024 * 1024;
+    const int MAX_PAGE_SIZE = 2 * 1024 * 1024;
     int allocatedSize = 0;
     int curPos = 0;
     char* buf = nullptr;
@@ -47,11 +47,11 @@ struct SocketWrapper {
     Result<bool> sendRequest(std::string req_str);
     // Recv loop
     Result<std::string> read(int& num_bytes, int max_size);
-    // Cleanup
    
     std::string requestURL(std::string url, ThreadSafeSet& known_hosts, ThreadSafeSet& known_ips);
     
-
+    //Cleanup
+    void cleanup();
 };
 
 Result<http_req> SocketWrapper::parseURL(char* url) {
@@ -201,7 +201,7 @@ Result<bool> SocketWrapper::socketConnect(sockaddr_in& server) {
 std::string SocketWrapper::httpRobotsStr() {
     std::string request = "/robots.txt";
 
-    request = "GET " + request + " HTTP/1.0\r\n" + "User-agent: csce463crawler/1.1\r\n"
+    request = "HEAD " + request + " HTTP/1.0\r\n" + "User-agent: csce463crawler/1.1\r\n"
         + "Host: " + req.host + "\r\nConnection: close\r\n" + "\r\n";;
 
     return request;
@@ -248,7 +248,7 @@ Result<std::string> SocketWrapper::read(int& num_bytes, int max_size) {
     while (true) {
         auto current_time = std::chrono::steady_clock::now();
         if (current_time >= max_time) {
-            output << "failed with slow_download" << std::endl;
+            output << "failed with slow download" << std::endl;
             return Result<std::string>{1, ""};
         }
 
@@ -276,7 +276,15 @@ Result<std::string> SocketWrapper::read(int& num_bytes, int max_size) {
             }
 
             curPos += bytes;
+            if (curPos > max_size) {
+                output << "failed with exceeding max" << std::endl;
+                return Result<std::string>{1, ""};
+            }
             if (allocatedSize - curPos < THRESHOLD) {
+                if(allocatedSize * 2 > max_size) {
+                    output << "failed with exceeding max" << std::endl;
+                    return Result<std::string>{1, ""};
+                }
                 allocatedSize *= 2;
                 char* new_buf = new char[allocatedSize];
                 memcpy(new_buf, buf, curPos);
@@ -296,7 +304,7 @@ Result<std::string> SocketWrapper::read(int& num_bytes, int max_size) {
     return Result<std::string>{0, ""};  
 }
 
-std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_hosts, ThreadSafeSet& known_ips) {
+std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_hosts, ThreadSafeSet& known_ips){
     output << "URL: " << url << std::endl;
     
     // Make a copy of the url and parse
@@ -459,8 +467,6 @@ std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_host
     }
 
     if (status_code >= 200 && status_code <= 299) {
-        std::cout << "here" << std::endl;
-        exit(EXIT_FAILURE);
         //parse html
         HTMLParserBase* parser = new HTMLParserBase;
         int nlinks;
@@ -489,4 +495,13 @@ std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_host
 
     delete[] url_copy;
     return output.str();
+}
+
+void SocketWrapper::cleanup() {
+    if (allocatedSize > (32 * 1024)) {
+        delete[] buf;
+        buf = nullptr;
+        allocatedSize = 0;
+    }
+    curPos = 0;
 }
