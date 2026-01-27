@@ -1,1 +1,7 @@
 http://google.com
+http://tamu.edu
+http://www.gingerbill.org
+http://128.194.135.72
+http://www.yahoo.com
+http://www.dmoz.org
+http://s2.irl.cs.tamu.edu/IRL8

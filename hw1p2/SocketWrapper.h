@@ -201,7 +201,7 @@ Result<bool> SocketWrapper::socketConnect(sockaddr_in& server) {
 std::string SocketWrapper::httpRobotsStr() {
     std::string request = "/robots.txt";
 
-    request = "HEAD " + request + " HTTP/1.0\r\n" + "User-agent: csce463crawler/1.1\r\n"
+    request = "HEAD " + request + " HTTP/1.0\r\n" + "User-agent: csce463crawler/1.2\r\n"
         + "Host: " + req.host + "\r\nConnection: close\r\n" + "\r\n";;
 
     return request;
@@ -216,7 +216,7 @@ std::string SocketWrapper::httpRequestStr() {
         request = "/" + req.path;
     }
 
-    request = "GET " + request + " HTTP/1.0\r\n" + "User-agent: csce463crawler/1.1\r\n"
+    request = "GET " + request + " HTTP/1.0\r\n" + "User-agent: csce463crawler/1.2\r\n"
         + "Host: " + req.host + "\r\nConnection: close\r\n" + "\r\n";
 
     return request;
@@ -305,6 +305,8 @@ Result<std::string> SocketWrapper::read(int& num_bytes, int max_size) {
 }
 
 std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_hosts, ThreadSafeSet& known_ips){
+    output.str("");
+    output.clear();
     output << "URL: " << url << std::endl;
     
     // Make a copy of the url and parse
@@ -398,6 +400,9 @@ std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_host
     }
     output << "\t  Verifying header... status code " << status_code << std::endl;
   
+    curPos = 0;
+    buf[curPos] = 0;
+
     // Connect a socket
     output << "\t* Connecting on page... " << std::flush;
     conn_start = std::clock();
@@ -427,14 +432,15 @@ std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_host
         return output.str();
     }
 
-    http_version = "";
-    status_code = 0;
+    std::string page_http_version = "";
+    int page_status_code = 0;
     std::istringstream page_stream(request_response.value);
-    if (!(page_stream >> http_version >> status_code)) {
+    //std::cout << request_response.value << std::endl << std::endl;
+    if (!(page_stream >> page_http_version >> page_status_code)) {
         output << "failed with non-HTTP header (does not begin with HTTP/)" << std::endl;
         return output.str();
     }
-    else if (http_version.compare(0, 5, "HTTP/") != 0) {
+    else if (page_http_version.compare(0, 5, "HTTP/") != 0) {
         output << "failed with non-HTTP header (does not begin with HTTP/)" << std::endl;
         return output.str();
     }
@@ -447,7 +453,7 @@ std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_host
         output << "Failed to close socket with " << WSAGetLastError() << std::endl;
     }
 
-    output << "\t  Verifying header... status code " << status_code << std::endl;
+    output << "\t  Verifying header... status code " << page_status_code << std::endl;
 
     // HTML Parsing
     std::string header;
@@ -466,7 +472,7 @@ std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_host
         output << "Could not separate http header and body" << std::endl;
     }
 
-    if (status_code >= 200 && status_code <= 299) {
+    if (page_status_code >= 200 && page_status_code <= 299) {
         //parse html
         HTMLParserBase* parser = new HTMLParserBase;
         int nlinks;
@@ -504,4 +510,5 @@ void SocketWrapper::cleanup() {
         allocatedSize = 0;
     }
     curPos = 0;
+    buf[curPos] = '\0';
 }

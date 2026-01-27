@@ -34,7 +34,7 @@ std::queue<std::string> parseUrlFile(std::string url_file) {
 void safePrint(std::string& str) {
     static std::mutex m;
     std::lock_guard<std::mutex> lock(m);
-    std::cout << str << std::endl;
+    std::cout << str << std::flush;
 }
 
 void requestUrls(std::queue<std::string>& url_queue, ThreadSafeSet& known_hosts, ThreadSafeSet& known_ips) {
