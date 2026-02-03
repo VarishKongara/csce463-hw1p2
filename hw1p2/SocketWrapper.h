@@ -510,5 +510,8 @@ void SocketWrapper::cleanup() {
         allocatedSize = 0;
     }
     curPos = 0;
+    if (buf == nullptr) {
+        return;
+    }
     buf[curPos] = '\0';
 }
