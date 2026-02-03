@@ -166,6 +166,10 @@ Result<std::string> SocketWrapper::dnsLookup(sockaddr_in& server, const char* ho
     double dns_duration = static_cast<double>(dns_end - dns_start) / (CLOCKS_PER_SEC / 1000);
     char ip_buffer[INET_ADDRSTRLEN] = {};
     const char* ip = inet_ntop(AF_INET, &(server.sin_addr), ip_buffer, INET_ADDRSTRLEN);
+    if (ip == nullptr) {
+        output << "failed with " << WSAGetLastError() << std::endl;
+        return { 1, "" };
+    }
     output << "done in " << static_cast<int>(dns_duration) << " ms, found " << ip << std::endl;
 
     return { 0, ip };
@@ -505,6 +509,7 @@ std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_host
         if (nlinks < 0) {
             output << "failed to parse with " << nlinks << std::endl;
             delete[] url_copy;
+            delete[] parser;
             return output.str();
         }
 
