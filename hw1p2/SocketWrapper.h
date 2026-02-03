@@ -317,6 +317,7 @@ std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_host
     }
     Result<http_req> url_parse = parseURL(url_copy);
     if (url_parse.error) {
+        delete[] url_copy;
         return output.str();
     }
     req = url_parse.value;
@@ -326,6 +327,7 @@ std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_host
     // Check if the host is duplicate
     Result<bool> host_check = checkHost(req.host.c_str(), known_hosts);
     if (host_check.error) {
+        delete[] url_copy;
         return output.str();
     }
 
@@ -333,6 +335,7 @@ std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_host
     sockaddr_in server;
     Result<std::string> dns_result = dnsLookup(server, req.host.c_str());
     if (dns_result.error) {
+        delete[] url_copy;
         return output.str();
     }
 
@@ -342,6 +345,7 @@ std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_host
     // Check if the ip is dupicate
     Result<bool> ip_check = checkIP(dns_result.value.c_str(), known_ips);
     if (ip_check.error) {
+        delete[] url_copy;
         return output.str();
     }
 
@@ -350,6 +354,7 @@ std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_host
     std::clock_t conn_start = std::clock();
     Result<bool> socket = socketConnect(server);
     if (socket.error) {
+        delete[] url_copy;
         return output.str();
     }
     std::clock_t conn_end = std::clock();
@@ -364,6 +369,7 @@ std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_host
     std::clock_t load_start = std::clock();
     Result<bool> send_req = sendRequest(req_robots);
     if (send_req.error) {
+        delete[] url_copy;
         return output.str();
     }
     
@@ -371,6 +377,7 @@ std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_host
     int num_bytes = 0;
     Result<std::string>robots_response = read(num_bytes, MAX_ROBOT_SIZE);
     if (robots_response.error) {
+        delete[] url_copy;
         return output.str();
     }
 
@@ -379,10 +386,12 @@ std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_host
     std::istringstream stream(robots_response.value);
     if (!(stream >> http_version >> status_code)) {
         output << "failed with non-HTTP header (does not begin with HTTP/)" << std::endl;
+        delete[] url_copy;
         return output.str();
     }
     else if (http_version.compare(0, 5, "HTTP/") != 0) {
         output << "failed with non-HTTP header (does not begin with HTTP/)" << std::endl;
+        delete[] url_copy;
         return output.str();
     }
     std::clock_t load_end = std::clock();
@@ -396,6 +405,7 @@ std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_host
 
     if (status_code < 400 || status_code > 499) {
         output << "\t  Verifying header... status code " << status_code << std::endl;
+        delete[] url_copy;
         return output.str();
     }
     output << "\t  Verifying header... status code " << status_code << std::endl;
@@ -408,6 +418,7 @@ std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_host
     conn_start = std::clock();
     socket = socketConnect(server);
     if (socket.error) {
+        delete[] url_copy;
         return output.str();
     }
     conn_end = std::clock();
@@ -422,6 +433,7 @@ std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_host
     load_start = std::clock();
     send_req = sendRequest(req_str);
     if (send_req.error) {
+        delete[] url_copy;
         return output.str();
     }
     
@@ -429,6 +441,7 @@ std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_host
     num_bytes = 0;
     Result<std::string>request_response = read(num_bytes, MAX_PAGE_SIZE);
     if (request_response.error) {
+        delete[] url_copy;
         return output.str();
     }
 
@@ -438,10 +451,12 @@ std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_host
     //std::cout << request_response.value << std::endl << std::endl;
     if (!(page_stream >> page_http_version >> page_status_code)) {
         output << "failed with non-HTTP header (does not begin with HTTP/)" << std::endl;
+        delete[] url_copy;
         return output.str();
     }
     else if (page_http_version.compare(0, 5, "HTTP/") != 0) {
         output << "failed with non-HTTP header (does not begin with HTTP/)" << std::endl;
+        delete[] url_copy;
         return output.str();
     }
     load_end = std::clock();
@@ -489,6 +504,7 @@ std::string SocketWrapper::requestURL(std::string url, ThreadSafeSet& known_host
 
         if (nlinks < 0) {
             output << "failed to parse with " << nlinks << std::endl;
+            delete[] url_copy;
             return output.str();
         }
 
